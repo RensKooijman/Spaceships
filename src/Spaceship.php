@@ -39,14 +39,14 @@ class Spaceship
     }
 
 
-    public function shoot(): int
+    public function shoot($hitship): int
     {
 
         $shot = 10;
         $damage = 2;
         if ($this->ammo - $shot >= 0) {
             $this->ammo -= $shot;
-            return ($shot * $damage);
+            return $hitship->hit($shot * $damage);
         } else {
             return 0;
         }
@@ -189,7 +189,6 @@ class Battle{
         foreach ($teamblue as $ships) {
             $blueAlive[] = $ships->getAlive();
         }
-
         $filtered = array_filter($blueAlive, function($k) {
             return $k == false;
         });
@@ -197,12 +196,10 @@ class Battle{
         if (count($filtered) === count($blueAlive)) {
         return "red won";
         }
-        $RedAlive = array(Null);
 
         foreach ($teamRed as $ships) {
             $RedAlive[] = $ships->getAlive();
         }
-
         $filtered = array_filter($RedAlive, function($k) {
             return $k == false;
         });
@@ -224,6 +221,8 @@ class Battle{
                 $total[] = $teamRed[$i];
             }
         }
+
+        $i = 0;
         
         foreach ($total as $ship){
             if($ship->getName() == "Carriership"){
@@ -247,11 +246,26 @@ class Battle{
                     $functions = $selectedValue;
             }
 
-            if($functions=="move"){
-                call_user_func(array($ship, $functions),array(random_int(10, 25), random_int(10, 25)));
-            }else{
-                call_user_func($functions ,$ship);
+            switch ($functions) {
+                case "move":
+                    $ship->move(rand(10 ,25))
+                    break;
+                case "shoot":
+                    while (empty($total[$i + $more])) {
+                        $more += 2;
+                      }                      
+                    $ship->shoot($total[$i+$more]);
+                    break;
+                case "boost":
+                    $ship->boost();
+                    break;
+                case "giveheal":
+                    $ship->giveheal();
+                    break;
+                case "giveFeul":
+                    $ship->giveFuel();
             }
+            $i++;
         }
     }
 }
