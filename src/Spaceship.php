@@ -190,7 +190,7 @@ class Battle{
             $blueAlive[] = $ships->getAlive();
         }
         $filtered = array_filter($blueAlive, function($k) {
-            return $k == false;
+            return $k == true;
         });
 
         if (count($filtered) === count($blueAlive)) {
@@ -201,7 +201,7 @@ class Battle{
             $RedAlive[] = $ships->getAlive();
         }
         $filtered = array_filter($RedAlive, function($k) {
-            return $k == false;
+            return $k == true;
         });
 
         if (count($filtered) === count($RedAlive)) {
