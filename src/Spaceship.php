@@ -11,6 +11,7 @@ class Spaceship {
     protected int $extrafuel;
     protected int $extraheal;
     protected bool $barrier;
+    protected string $team = "none";
 
 
     public function __construct(
@@ -35,14 +36,21 @@ class Spaceship {
         $this->isAlive = true;
     }
 
+    public function get_team() {
+        return $this->team;
+    }
+
+    public function set_team($team) {
+        $this->team = $team;
+    }
 
     public function shoot($hitship) {
-
         $shot = 10;
         $damage = 2;
         if ($this->ammo - $shot >= 0) {
             $this->ammo -= $shot;
-            return $hitship->hit($shot * $damage);
+            $hitship->hit($shot * $damage);
+            return $shot * $damage;
         } else {
             return 0;
         }
@@ -61,9 +69,9 @@ class Spaceship {
     public function move($x, $y) {
         $distance = (sqrt(pow($this->location[0] - $x, 2) + pow($this->location[1] - $y, 2)));
         if ($distance > 0) {
-            $_fuelUsage = 2 * $distance;
-            if ($this->fuel - $_fuelUsage > 0) {
-                $this->fuel -= $_fuelUsage;
+            $fuelUsage = 2 * $distance;
+            if ($this->fuel - $fuelUsage > 0) {
+                $this->fuel -= $fuelUsage;
             } else {
                 $this->fuel = 0;
             }
@@ -80,11 +88,8 @@ class Spaceship {
     public function getHitPoints() {
         return $this->hitPoints;
     }
-    public function getlong() {
-        return $this->long;
-    }
-    public function getlat() {
-        return $this->lat;
+    public function getLocation() {
+        return $this->location;
     }
     public function getfuel() {
         return $this->fuel;
@@ -152,13 +157,20 @@ class Carriership extends Spaceship {
 
 class Battle {
     protected string $win = "";
+    protected string $battleNotes = "";
     protected string $Move;
     protected $teamRed;
     protected $teamBlue;
 
     public function __construct($_Move = null, $teamRed = null, $teamBlue = null) {
         $this->Move = $_Move;
+        foreach ($teamRed as $ship) {
+            $ship->set_team("red");
+        }
         $this->teamRed = $teamRed;
+        foreach ($teamBlue as $ship) {
+            $ship->set_team("blue");
+        }
         $this->teamBlue = $teamBlue;
     }
     public function get_win() {
@@ -169,6 +181,12 @@ class Battle {
     }
     public function getTeamBlue() {
         return $this->teamBlue;
+    }
+    public function getBattleNotes() {
+        return $this->battleNotes;
+    }
+    public function setBattleNotes($notes) {
+        $this->battleNotes = $this->battleNotes . "</br>" . $notes;
     }
     public function battle1() {
         foreach ($this->teamBlue as $ships) {
@@ -211,6 +229,9 @@ class Battle {
 
         $i = 0;
         foreach ($total as $ship) {
+            if (!$ship->getAlive()) {
+                continue; // Skip dead ships
+            }
             if ($ship->getName() == "Carriership") {
                 $CarriershipMoveset = array_merge($Carriership, $default);
                 $randomIndex = rand(0, count($CarriershipMoveset) - 1);
@@ -235,22 +256,34 @@ class Battle {
             switch ($functions) {
                 case "move":
                     $ship->move(rand(10, 25), rand(10, 25));
+                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " moved to " . $ship->getLocation()[0] . " " . $ship->getLocation()[1]);
                     break;
                 case "shoot":
-                    while (empty($total[$i + $more])) {
+                    while ((empty($total[$i]) || !$total[$i + $more]->getAlive() || $total[$i+$more]->get_team() == $ship->get_team()) && count($total) < $more) {
                         $more += 1;
                     }
-                    $ship->shoot($total[$i + $more]);
+                    if ($more >= count($total)) {
+                        $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " has no valid targets to shoot at.");
+                        break;
+                    }
+                    $damage = $ship->shoot($total[($i + $more) % count($total)]);
                     $more = 0;
+                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " shot at " . $total[$i + $more]->getName() . " of team " . $total[$i + $more]->get_team() . " and did " . $damage . " damage. enemy has now " . $total[$i + $more]->getHitPoints() . " hitpoints left.");
+                    if (!$total[$i + $more]->getAlive()) {
+                        $this->setBattleNotes($total[$i + $more]->getName() . " of team " . $total[$i + $more]->get_team() . " has been destroyed.");
+                    }
                     break;
                 case "boost":
                     $ship->boost();
+                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " used boost and has now " . $ship->getboost() . " boost left.");
                     break;
                 case "giveheal":
                     $ship->giveheal();
+                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " gave heal and has now " . $ship->getHitpointsInTank() . " hitpoints in tank left.");
                     break;
-                case "giveFeul":
+                case "giveFuel":
                     $ship->giveFuel();
+                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " gave fuel and has now " . $ship->getFuelInTank() . " fuel in tank left.");
             }
             $i++;
         }

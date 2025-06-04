@@ -46,21 +46,7 @@ include_once 'Spaceship.php'
         }
         echo "The winner is: " . $battle->get_win() . "<br>";
         echo "The battle has ended.<br>";
-
-        foreach($fleet as $ship){
-            foreach($ship as $info){
-                if(!is_array($info)){
-                echo "$info <br>";
-                }
-                else{
-                    foreach($info as $inf){
-                        echo "$inf <br>";
-                    }
-                }
-            }
-        }
-        var_export($battle->getTeamRed(), true);
-        var_export($battle->getTeamBlue(), true);
+        echo $battle->getBattleNotes() . "<br>";
         echo "The end of the code has been reached.<br>";
         ?>
     </p>
