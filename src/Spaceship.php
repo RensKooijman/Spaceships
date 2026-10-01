@@ -16,7 +16,7 @@ class Spaceship {
 
     public function __construct(
         $name = 'spaceship',
-        $ammo = 100,
+        $ammo = 200,
         $fuel = 1000,
         $hitPoints = 100,
         $location = array(0, 0),
@@ -56,6 +56,10 @@ class Spaceship {
         }
     }
 
+    public function canShoot() {
+        return $this->ammo >= 10;
+    }
+
     public function hit($damage) {
         if ($this->barrier === true) {
             return $this->barrier = false;
@@ -83,6 +87,9 @@ class Spaceship {
     public function getName() {
         return $this->name;
     }
+    public function setName($name) {
+        $this->name = $name;
+    }
     public function getAmmo() {
         return $this->ammo;
     }
@@ -91,6 +98,9 @@ class Spaceship {
     }
     public function getLocation() {
         return $this->location;
+    }
+    public function setLocation($location) {
+        $this->location = $location;
     }
     public function getfuel() {
         return $this->fuel;
@@ -127,7 +137,7 @@ class Healer extends Spaceship {
         $this->hitPoints = 10;
         $this->barrier = true;
 
-        $this->ammo = 31;
+        $this->ammo = 200;
         $this->fuel = 454;
         $this->location = array(52, 5);
         $this->extrafuel = 100;
@@ -142,13 +152,11 @@ class Healer extends Spaceship {
         return $this->HitpointsInTank;
     }
 
-    public function giveheal() {
-        if ($this->HitpointsInTank - $this->extraheal > 0) {
-            $this->hitPoints += $this->extraheal;
-            return $this->HitpointsInTank -= $this->extraheal;
-        } else {
-            return $this->HitpointsInTank = 0;
-        }
+    public function giveheal($target = null) {
+        if ($target === null || $this->HitpointsInTank < $this->extraheal) return false;
+        $target->hitPoints += $this->extraheal;
+        $this->HitpointsInTank -= $this->extraheal;
+        return true;
     }
 }
 class Carriership extends Spaceship {
@@ -156,9 +164,11 @@ class Carriership extends Spaceship {
     public function getFuelInTank() {
         return $this->FuelInTank;
     }
-    public function giveFuel() {
-        return $this->FuelInTank -= $this->extrafuel;
-        $this->fuel += $this->extrafuel;
+    public function giveFuel($target = null) {
+        if ($target === null || $this->FuelInTank < $this->extrafuel) return false;
+        $target->fuel += $this->extrafuel;
+        $this->FuelInTank -= $this->extrafuel;
+        return true;
     }
 }
 
@@ -168,6 +178,9 @@ class Battle {
     protected string $Move;
     protected $teamRed;
     protected $teamBlue;
+    protected array $lastTurnNotes = [];
+    protected int $turn = 0;
+    protected int $maxTurns = 1000;
 
     public function __construct($_Move = null, $teamRed = null, $teamBlue = null) {
         $this->Move = $_Move;
@@ -192,88 +205,55 @@ class Battle {
     public function getBattleNotes() {
         return $this->battleNotes;
     }
+    public function getTurn() {
+        return $this->turn;
+    }
+    public function getLastTurnNotes() {
+        return $this->lastTurnNotes;
+    }
     public function setBattleNotes($notes) {
         $this->battleNotes = $this->battleNotes . "</br>" . $notes;
+        $this->lastTurnNotes[] = $notes;
     }
     public function battle1() {
-        foreach ($this->teamBlue as $ships) {
-            $blueAlive[] = $ships->getAlive();
+        if ($this->win !== "") return $this->win . " won";
+        if ($this->allLivingShipsOutOfAmmo()) {
+            $this->win = "draw";
+            return "draw";
         }
-        $filtered = array_filter($blueAlive, function ($k) {
-            return $k == true;
-        });
-
-        if (count($filtered) === 0) {
-            $this->win = "red";
-            return "red won";
+        if ($this->turn >= $this->maxTurns) {
+            $this->win = "draw";
+            return "draw";
         }
-
-        foreach ($this->teamRed as $ships) {
-            $RedAlive[] = $ships->getAlive();
-        }
-        $filtered = array_filter($RedAlive, function ($k) {
-            return $k == true;
-        });
-
-        if (count($filtered) === 0) {
-            $this->win = "blue";
-            return "blue won";
-        }
-
-        $default = array("shoot", "move");
-        $fighter = array("boost");
-        $healer = array("giveheal");
-        $Carriership = array("giveFuel");
-        $functions = null;
-        $total = [];
-
-        for ($i = 0; $i < count($this->teamBlue); $i++) {
-            $total[] = $this->teamBlue[$i];
-            if (isset($this->teamRed[$i])) {
-                $total[] = $this->teamRed[$i];
-            }
-        }
-
-        $i = 0;
+        $this->turn++;
+        $this->lastTurnNotes = [];
+        $total = array_merge($this->teamBlue, $this->teamRed);
         foreach ($total as $ship) {
             if (!$ship->getAlive()) {
-                continue; // Skip dead ships
+                continue;
             }
-            if ($ship->getName() == "Carriership") {
-                $CarriershipMoveset = array_merge($Carriership, $default);
-                $randomIndex = rand(0, count($CarriershipMoveset) - 1);
-                $selectedValue = $CarriershipMoveset[$randomIndex];
-                $functions = $selectedValue;
-            } elseif ($ship->getName() == "Healer") {
-                $HealerMoveset = array_merge($healer, $default);
-                $randomIndex = rand(0, count($HealerMoveset) - 1);
-                $selectedValue = $HealerMoveset[$randomIndex];
-                $functions = $selectedValue;
-            } elseif ($ship->getName() == "fightership") {
-                $FighterMoveset = array_merge($fighter, $default);
-                $randomIndex = rand(0, count($FighterMoveset) - 1);
-                $selectedValue = $FighterMoveset[$randomIndex];
-                $functions = $selectedValue;
-            } else {
-                $randomIndex = rand(0, count($default) - 1);
-                $selectedValue = $default[$randomIndex];
-                $functions = $selectedValue;
-            }
-            $validTargets = [];
-            switch ($functions) {
+            $moveset = array("shoot", "move");
+            if ($ship instanceof Fightership) $moveset[] = "boost";
+            if ($ship instanceof Healer) $moveset[] = "giveheal";
+            if ($ship instanceof Carriership) $moveset[] = "giveFuel";
+            if (!$ship->canShoot()) $moveset = array_values(array_diff($moveset, array("shoot")));
+            $action = $moveset[array_rand($moveset)];
+            $validTargets = array_values(array_filter($total, fn($target) => $target !== $ship && $target->getAlive() && $target->get_team() === $ship->get_team()));
+            switch ($action) {
                 case "move":
-                    $ship->move(rand(10, 25), rand(10, 25));
+                    $location = $ship->getLocation();
+                    $ship->move(max(0, min(29, $location[0] + rand(-1, 1))), max(0, min(29, $location[1] + rand(-1, 1))));
                     $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " moved to " . $ship->getLocation()[0] . " " . $ship->getLocation()[1]);
                     break;
                 case "shoot":
+                    $enemyTargets = [];
                     foreach ($total as $target) {
                         if ($target->getAlive() && strcmp($target->get_team(), $ship->get_team()) !== 0) {
-                            $validTargets[] = $target;
+                            $enemyTargets[] = $target;
                         }
                     }
-                    $randTarget = rand(1, count($validTargets)-1);
-                    if (isset($validTargets[$randTarget])) {
-                        $target = $validTargets[$randTarget];
+                    if (count($enemyTargets) > 0) {
+                        $target = $enemyTargets[array_rand($enemyTargets)];
                         $damage = $ship->shoot($target);
                         $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " shot at " . $target->getName() . " of team " . $target->get_team() . " and did " . $damage . " damage. enemy has now " . $target->getHitPoints() . " hitpoints left.");
                         if (!$target->getAlive()) {
@@ -286,18 +266,32 @@ class Battle {
                     $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " used boost and has now " . $ship->getboost() . " boost left.");
                     break;
                 case "giveheal":
-                    $ship->giveheal();
-                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " gave heal and has now " . $ship->getHitpointsInTank() . " hitpoints in tank left.");
+                    if (count($validTargets) > 0) {
+                        $target = $validTargets[array_rand($validTargets)];
+                        $ship->giveheal($target);
+                        $this->setBattleNotes($ship->getName() . " healed " . $target->getName() . ".");
+                    }
                     break;
                 case "giveFuel":
-                    $ship->giveFuel();
-                    $this->setBattleNotes($ship->getName() . " of team " . $ship->get_team() . " gave fuel and has now " . $ship->getFuelInTank() . " fuel in tank left.");
+                    if (count($validTargets) > 0) {
+                        $target = $validTargets[array_rand($validTargets)];
+                        $ship->giveFuel($target);
+                        $this->setBattleNotes($ship->getName() . " refueled " . $target->getName() . ".");
+                    }
             }
-            $i++;
-            // if ($i >= count($total)) {
-            //     var_dump($this->getBattleNotes());
-            //     die();
-            // }
         }
+        $this->updateWinner();
+        if ($this->win === "" && $this->allLivingShipsOutOfAmmo()) $this->win = "draw";
+        return $this->win ? $this->win . " won" : "turn complete";
+    }
+    protected function allLivingShipsOutOfAmmo() {
+        $livingShips = array_filter(array_merge($this->teamBlue, $this->teamRed), fn($ship) => $ship->getAlive());
+        return count($livingShips) > 0 && count(array_filter($livingShips, fn($ship) => $ship->getAmmo() >= 10)) === 0;
+    }
+    protected function updateWinner() {
+        $blueAlive = count(array_filter($this->teamBlue, fn($ship) => $ship->getAlive()));
+        $redAlive = count(array_filter($this->teamRed, fn($ship) => $ship->getAlive()));
+        if ($blueAlive === 0) $this->win = "red";
+        if ($redAlive === 0) $this->win = "blue";
     }
 }
